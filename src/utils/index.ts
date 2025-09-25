@@ -121,10 +121,10 @@ export const getCDANullEntries = async (
     });
   }
 
-  setMessage("Entries fetched successfully");
+  setMessage("Entries fetched successfully, total entries: " + affectedEntriesSet.size);
   return {
     success: true,
-    message: "Entries fetched successfully",
+    message: "Entries fetched successfully, total entries: " + affectedEntriesSet.size,
     affectedEntriesSet,
   };
 };
