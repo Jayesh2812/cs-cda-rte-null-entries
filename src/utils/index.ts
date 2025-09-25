@@ -15,6 +15,44 @@ const REGION_CDN_URL_MAP = {
   [Region.GCP_EU]: "https://gcp-eu-cdn.contentstack.com",
 };
 
+// Helper function to process a single locale for a content type
+const processLocaleForContentType = async (
+  stack: any,
+  contentType: any,
+  locale: any,
+  paths: string[]
+): Promise<Set<string>> => {
+  const localeAffectedEntries = new Set<string>();
+  
+  // Create a new stack instance for this locale to avoid conflicts
+  const localeStack = contentstack.stack(stack.stackConfig);
+  localeStack.setLocale(locale.code);
+
+  const query = getQuery(paths);
+  const entries = (
+    await localeStack.contentType(contentType.uid).entry().query(query).find()
+  ).entries as any[];
+
+  for (const entry of entries) {
+    if (entry.locale !== locale.code) {
+      continue;
+      // console.log(entry.uid, "Expected" ,locale.code, "Actual", entry.locale);
+    }
+    const absolutePaths = getAllAbsoluteJsonRtePaths(
+      contentType.schema,
+      entry
+    );
+    const nullPaths = absolutePaths.filter((path) => !get(entry, path));
+    if (nullPaths.length) {
+      localeAffectedEntries.add(
+        `${entry.uid} - ${contentType.uid} - ${entry.locale} - ${entry._version}`
+      );
+    }
+  }
+
+  return localeAffectedEntries;
+};
+
 export const getCDANullEntries = async (
   region: Region,
   accessToken: string,
@@ -36,12 +74,20 @@ export const getCDANullEntries = async (
   }
 
   const stack = contentstack.stack(stackConfig);
+  // Store stack config for creating new instances
+  (stack as any).stackConfig = stackConfig;
 
-  const contentTypes = (
+  let contentTypes = (
     await stack.contentType().includeGlobalFieldSchema().find()
   ).content_types as any[];
-  const locales = (await getLocales(region, branchName, accessToken, apiKey));
-  let affectedEntriesSet = new Set();
+  let locales = await getLocales(region, branchName, accessToken, apiKey);
+
+  // contentTypes = contentTypes.filter(
+  //   (contentType) => contentType.uid === "insight"
+  // );
+  // locales = locales.filter((locale) => locale.code === "nl-nl");
+
+  let affectedEntriesSet = new Set<string>();
 
   if (!contentTypes || !locales) {
     return {
@@ -52,35 +98,27 @@ export const getCDANullEntries = async (
 
   for (const contentType of contentTypes) {
     setMessage(`Processing contentType: ${contentType.uid}`);
-    for (const locale of locales) {
-      setMessage(`Processing locale ${locale.code} of contentType ${contentType.uid}`);
-      stack.setLocale(locale.code);
-      const paths = getAllRtePaths(contentType.schema);
+    const paths = getAllRtePaths(contentType.schema);
+    
+    // Create promises for all locales for this content type
+    const localePromises = locales.map((locale: any) => {
+      setMessage(
+        `Processing locale ${locale.code} of contentType ${contentType.uid}`
+      );
+      return processLocaleForContentType(stack, contentType, locale, paths);
+    });
 
-      let query = getQuery(paths);
-      for (const locale of locales) {
-        const entries = (
-          await stack.contentType(contentType.uid).entry().query(query).find()
-        ).entries as any[];
-
-        for (const entry of entries) {
-          if (entry.locale !== locale.code) {
-            continue;
-            // console.log(entry.uid, "Expected" ,locale.code, "Actual", entry.locale);
-          }
-          const absolutePaths = getAllAbsoluteJsonRtePaths(
-            contentType.schema,
-            entry
-          );
-          const nullPaths = absolutePaths.filter((path) => !get(entry, path));
-          if (nullPaths.length) {
-            affectedEntriesSet.add(
-              `${entry.uid} - ${contentType.uid} - ${entry.locale} - ${entry._version}`
-            );
-          }
-        }
+    // Wait for all locale promises to settle
+    const settledResults = await Promise.allSettled(localePromises);
+    
+    // Extract successful results and merge into main set
+    settledResults.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        result.value.forEach((entry: string) => affectedEntriesSet.add(entry));
+      } else {
+        console.error(`Failed to process locale ${locales[index].code} for content type ${contentType.uid}:`, result.reason);
       }
-    }
+    });
   }
 
   setMessage("Entries fetched successfully");
