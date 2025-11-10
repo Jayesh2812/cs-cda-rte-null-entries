@@ -1,7 +1,7 @@
 import { Region } from "@contentstack/delivery-sdk";
 import { Table } from "antd";
 import { Button, Input, Select } from "antd";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import * as contentstack from "@contentstack/management";
 import get from "lodash.get";
 import isEqual from "lodash.isequal";
