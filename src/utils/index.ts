@@ -15,6 +15,26 @@ const REGION_CDN_URL_MAP = {
   [Region.GCP_EU]: "https://gcp-eu-cdn.contentstack.com",
 };
 
+export const REGION_MANAGEMENT_URL_MAP = {
+  NA: "https://api.contentstack.com/v3",
+  [Region.EU]: "https://eu-api.contentstack.com/v3",
+  [Region.AU]: "https://au-api.contentstack.com/v3",
+  [Region.AZURE_NA]: "https://azure-na-api.contentstack.com/v3",
+  [Region.AZURE_EU]: "https://azure-eu-api.contentstack.com/v3",
+  [Region.GCP_NA]: "https://gcp-na-api.contentstack.com/v3",
+  [Region.GCP_EU]: "https://gcp-eu-api.contentstack.com/v3",
+};
+
+export const REGION_AUTH_TOKEN_MAP = {
+  NA: "https://na-app.contentstack.com/api/v3",
+  [Region.EU]: "https://eu-app.contentstack.com/api/v3",
+  [Region.AU]: "https://au-app.contentstack.com/api/v3",
+  [Region.AZURE_NA]: "https://azure-na-app.contentstack.com/api/v3",
+  [Region.AZURE_EU]: "https://azure-eu-app.contentstack.com/api/v3",
+  [Region.GCP_NA]: "https://gcp-na-app.contentstack.com/api/v3",
+  [Region.GCP_EU]: "https://gcp-eu-app.contentstack.com/api/v3",
+};
+
 // Helper function to process a single locale for a content type
 const processLocaleForContentType = async (
   stack: any,
@@ -29,9 +49,29 @@ const processLocaleForContentType = async (
   localeStack.setLocale(locale.code);
 
   const query = getQuery(paths);
-  const entries = (
-    await localeStack.contentType(contentType.uid).entry().query(query).find()
-  ).entries as any[];
+  let {entries, count} = (
+    await localeStack.contentType(contentType.uid).entry().includeCount().find()
+  ) as {entries: any[], count: number};
+
+
+  // Add skip limit to fetch all entries based on count
+  // contentstack Delivery API limits: max 100 per request
+  const allEntries: any[] = [];
+  let skip = entries.length;
+  const limit = 100;
+  // Adjust query for first batch
+  while (skip < count) {
+    const batchQuery = { skip, limit, query };
+    const { entries: batchEntries } = (await localeStack
+      .contentType(contentType.uid)
+      .entry()
+      .query(batchQuery)
+      .find()) as { entries: any[] };
+    allEntries.push(...batchEntries);
+    skip += limit;
+  }
+  entries = allEntries;
+
 
   for (const entry of entries) {
     if (entry.locale !== locale.code) {
@@ -207,7 +247,7 @@ const getQuery = (paths: string[]) => {
   };
 };
 
-function getAllAbsoluteJsonRtePaths(
+export function getAllAbsoluteJsonRtePaths(
   schema: any[],
   entry: any,
   parentPath = ""
