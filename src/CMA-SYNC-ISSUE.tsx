@@ -72,10 +72,7 @@ function CmaSyncIssue() {
 
     setLoading(true);
     const stack = contentstack
-      .client({
-        authorization: managementToken,
-        endpoint: "https://azure-eu-app.contentstack.com/v3",
-      })
+      .client(options)
       .stack({ api_key: apiKey });
 
     const ctPromise = stack

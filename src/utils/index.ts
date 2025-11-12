@@ -26,7 +26,7 @@ export const REGION_MANAGEMENT_URL_MAP = {
 };
 
 export const REGION_AUTH_TOKEN_MAP = {
-  NA: "https://na-app.contentstack.com/api/v3",
+  NA: "https://app.contentstack.com/api/v3",
   [Region.EU]: "https://eu-app.contentstack.com/api/v3",
   [Region.AU]: "https://au-app.contentstack.com/api/v3",
   [Region.AZURE_NA]: "https://azure-na-app.contentstack.com/api/v3",
