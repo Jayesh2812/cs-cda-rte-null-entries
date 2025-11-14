@@ -153,11 +153,11 @@ function CmaSyncIssue() {
   const downloadEntriesAsCSV = () => {
     let csv = entries
       .map((entry) => {
-        return columns.map(column => entry[column.dataIndex]).join("");
+        return columns.map(column => entry[column.dataIndex]).join("\t");
       })
       .join("\n");
 
-    csv = columns.map(column => column.title).join(",") + "\n" + csv;
+    csv = columns.map(column => column.title).join("\t") + "\n" + csv;
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
