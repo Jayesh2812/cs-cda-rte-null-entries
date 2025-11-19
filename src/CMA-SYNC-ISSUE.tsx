@@ -112,7 +112,9 @@ function CmaSyncIssue() {
 
         const entryWOVersion = entries[i];
         const entryWVersion = entriesWithVersions[i];
-
+        if( !entryWVersion ){
+          continue;
+        }
         const paths = getAllAbsoluteJsonRtePaths(ct.schema, entryWVersion);
 
         let affectedPaths = [];
@@ -120,6 +122,10 @@ function CmaSyncIssue() {
         for ( const path of paths ){
             const valueWOVersion = get(entryWOVersion, path);
             const valueWVersion = get(entryWVersion, path);
+
+            if(valueWOVersion === null){
+              continue;
+            }
 
             const isValueChanged = !isEqual(valueWOVersion?.children ?? [], valueWVersion?.children ?? []);
 
